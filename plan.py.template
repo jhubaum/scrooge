@@ -1,0 +1,35 @@
+# add scrooge repository to system path
+import os, sys
+sys.path.append(os.getenv("SCROOGE_PATH"))
+
+from util.types import FixedCost, FixedCostArray
+
+MONTHLY_INCOME =
+MONTHLY_INVESTMENT_GOAL =
+MONTHLY_SAVING_GOAL =
+
+"""
+The list of fixed costs that are automatically withdrawn from
+the "inbox account".
+"""
+FIXED_COSTS = FixedCostArray(
+    FixedCost("Rent", 123),
+    FixedCost("VPN", 120, yearly=True),
+)
+
+"""
+A list of irregular, but recurring spendings
+(e.g. clothes or train tickets for visiting family).
+Keep them as an emergency budget on the "inbox account"
+"""
+RECURRING_SPENDINGS = FixedCostArray(
+    FixedCost("Travel (Train)", 250, yearly=True)
+)
+
+"""
+A list of categories for monthly spendings. At the start of the month,
+transfer their shared amount to the spendings account
+"""
+ENVELOPES = FixedCostArray(
+    FixedCost("Food", 250)
+)
