@@ -1,16 +1,36 @@
-from enum import Enum, auto
-from sqlalchemy import create_engine, Column, Date, Integer, String, Float, ForeignKey, Boolean, Enum, Text
+from sqlalchemy import create_engine, Column, Date, Integer, String, Float, ForeignKey, Boolean, Enum, Text, Table
 from sqlalchemy.orm import declarative_base, relationship, Session
 from datetime import datetime
+
+import enum
 
 Base = declarative_base()
 
 
-class SpendingCategory(Enum):
-    Fixed = auto() # for stuff like rent, food, ...
-    Savings = auto()
-    Investments = auto()
-    Free = auto() # for everything to enjoy life
+class SpendingCategory(enum.Enum):
+    fixed = enum.auto() # for stuff like rent, food, ...
+    savings = enum.auto()
+    investments = enum.auto()
+    free = enum.auto() # for everything to enjoy life
+
+
+tag_expense_association_table = Table(
+    "tag_expense_associations",
+    Base.metadata,
+    Column('tag_id', ForeignKey('tags.id'), primary_key=True),
+    Column('expense_id', ForeignKey('expenses.id'), primary_key=True)
+)
+
+class Tag(Base):
+    __tablename__ = 'tags'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+
+    expenses = relationship('Expense', 
+                            secondary=tag_expense_association_table, 
+                            back_populates='tags')
 
 
 class MonthlyLog(Base):
@@ -32,6 +52,13 @@ class Expense(Base):
     id = Column(Integer, primary_key=True)
     amount = Column(Float, nullable=False)
     date = Column(Date, nullable=False)
+    category = Column(Enum(SpendingCategory), nullable=False)
+    description = Column(Text, nullable=True)
+
+    tags = relationship('Tag', 
+                        secondary=tag_expense_association_table, 
+                        back_populates='expenses')
+    
 
     log_id = Column(Integer, ForeignKey(MonthlyLog.id, ondelete='cascade'), nullable=False)
     log = relationship('MonthlyLog', back_populates='expenses')
