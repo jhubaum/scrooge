@@ -1,4 +1,4 @@
-from .commands import track_expense, print_summary, manage_tags
+from . import commands
 
 from argparse import ArgumentParser, Namespace
 from datetime import datetime
@@ -11,7 +11,7 @@ def create_argparser():
     subparsers = parser.add_subparsers()
     
     track_parser = subparsers.add_parser("track", help="Track expenses")
-    track_parser.set_defaults(func=track_expense)
+    track_parser.set_defaults(func=commands.track_expense)
 
     #TODO: replace these argument by an import file instead
     track_parser.add_argument('amount', type=int, help='The amount spent')
@@ -24,24 +24,28 @@ def create_argparser():
     track_parser.add_argument('--description', '-d', help='An optional description for the expense')
 
     summary_parser = subparsers.add_parser('show', help="Print the summary of expenses for a specific time frame")
-    summary_parser.set_defaults(func=print_summary)
+    summary_parser.set_defaults(func=commands.print_summary)
 
     summary_parser.add_argument('--month', '-m', type=int)
     summary_parser.add_argument('--year', '-y', type=int)
 
-    # TODO: add more fine-grained control for categories
     tag_parser = subparsers.add_parser('tag', help='Manage tags')
-    tag_parser.set_defaults(func=manage_tags)
+    tag_parser = tag_parser.add_subparsers()
 
-    # TODO: remove the name and description argument for list, since they are not needed
-    tag_parser.add_argument('action', choices=['add', 'list'])
-    tag_parser.add_argument('name', help="The name of the tag")
-    tag_parser.add_argument('description', nargs="?", help="An optional description")
-
+    create_parser = tag_parser.add_parser('create', help='Create a new tag')
+    create_parser.add_argument('name', help="The name of the tag")
+    create_parser.add_argument('description', nargs="?", help="An optinal description")
+    create_parser.set_defaults(func=commands.create_new_tag)
+    
+    list_parser = tag_parser.add_parser('list', help="List all available tags")
+    list_parser.set_defaults(func=commands.list_available_tags)
+    
     return parser
 
-args = create_argparser().parse_args()
+parser = create_argparser()
+args = parser.parse_args()
 if "func" in args:
     args.func(args)
 else:
-    print_summary(Namespace())
+    parser.print_help()
+    exit(1)

@@ -52,20 +52,17 @@ def print_summary(args):
                   expense.description,
                   ', '.join(map(lambda t: t.name, expense.tags)))
 
+def create_new_tag(args):
+    if session.query(Tag).filter(Tag.name == args.name).count() > 0:
+        print(f'Tag with name {args.name} already exists!')
+        exit(1)
 
-def manage_tags(args):
-    if args.action == 'add':
-        if session.query(Tag).filter(Tag.name == args.name).count() > 0:
-            print(f'Tag with name {args.name} already exists!')
-            exit(1)
+    session.add(Tag(name=args.name, description=args.description))
+    session.commit()
 
-        session.add(Tag(name=args.name, description=args.description))
-        session.commit()
-    elif args.action == 'list':
-        for tag in session.query(Tag):
-            if tag.description is not None:
-                print(f'{tag.name}: {tag.description}')
-            else:
-                print(tag.name)
-    else:
-        raise NotImplementedError('This actio nis not supported for now')
+def list_available_tags(args):
+    for tag in session.query(Tag):
+        if tag.description is not None:
+            print(f'{tag.name}: {tag.description}')
+        else:
+            print(tag.name)
