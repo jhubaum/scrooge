@@ -1,10 +1,17 @@
 from .config import Config
 from .database import create_session, MonthlyLog, Expense, SpendingCategory, Tag
+from .analysis import analyse_monthly_log
+
+from . import util
 
 from rich import print
 
 config = Config.load('scrooge/test_config')
 session = create_session(config.database_path)
+
+def error_and_exit(message, error_code=1):
+    print(f"Error: {message}")
+    exit(error_code)
 
 def track_expense(args):
     log = session.query(MonthlyLog).filter(MonthlyLog.month==args.date.month,
@@ -23,8 +30,7 @@ def track_expense(args):
     for tag in args.tags:
         q = session.query(Tag).filter(Tag.name==tag)
         if q.count() == 0:
-            print(f"Tag `{tag}` doesn't exist")
-            exit(1)
+            error_and_exit(f"Tag `{tag}` doesn't exist")
         tags.append(q.first())
 
     expense = Expense(amount=args.amount, date=args.date, log=log,
@@ -66,3 +72,49 @@ def list_available_tags(args):
             print(f'{tag.name}: {tag.description}')
         else:
             print(tag.name)
+
+        for member in tag.members:
+            print(f'- {member.name}')
+
+def modify_member_hierarchy(args):
+    parent = session.query(Tag).filter(Tag.name==args.name)
+    if parent.count() == 0:
+        error_and_exit(f"Tag `{args.name}` doesn't exist")
+    parent = parent.first()
+
+    to_add = set()
+    to_remove = set()
+
+    for modifier in args.modifiers:
+        if modifier[0] != '-' and modifier[0] != '+':
+            error_and_exit(f"Invalid modifier `{modifier}`: First character has to be either '+' or '-'")
+
+        tag = session.query(Tag).filter(Tag.name==modifier[1:])
+        if tag.count() == 0:
+            error_and_exit(f"Invalid modifier `{modifier}`: `{modifier[1:]}` is not a known category name")
+
+        if modifier[0] == '-':
+            to_remove.add(tag.first())
+        else:
+            to_add.add(tag.first())
+
+    for tag in to_remove:
+        if tag not in parent.members:
+            print(f"`{tag.name}` is not a direct member of `{parent.name}`")
+        else:
+            print(f"Removed `{tag.name}` from `{parent.name}`")
+            parent.members.remove(tag)
+            session.commit()
+
+    for tag in to_add:
+        if tag == parent:
+            print("Can't add tags as members of themselves")
+        elif tag in parent.members:
+            print(f"`{tag.name}` already is a member of `{parent.name}`")
+        elif util.tags.path_between_tags_exists(tag, parent):
+            print(f"Skipping `{tag.name}`. Adding it as member of `{parent.name}` would create a cycle.")
+        else:
+            print(f"Added `{tag.name}` as member of `{parent.name}`")
+            parent.members.append(tag)
+            session.commit()
+

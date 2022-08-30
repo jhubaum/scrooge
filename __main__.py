@@ -1,6 +1,6 @@
 from . import commands
 
-from argparse import ArgumentParser, Namespace
+from argparse import ArgumentParser, Namespace, REMAINDER
 from datetime import datetime
 
 def str_to_date(string):
@@ -32,10 +32,18 @@ def create_argparser():
     tag_parser = subparsers.add_parser('tag', help='Manage tags')
     tag_parser = tag_parser.add_subparsers()
 
+    # TODO: Add some functionality for adding tag relationships
     create_parser = tag_parser.add_parser('create', help='Create a new tag')
     create_parser.add_argument('name', help="The name of the tag")
     create_parser.add_argument('description', nargs="?", help="An optinal description")
     create_parser.set_defaults(func=commands.create_new_tag)
+
+    member_parser = tag_parser.add_parser('members', help='Modify member categories')
+    member_parser.add_argument('name', help="The name of the tag to modify")
+    member_parser.add_argument('modifiers', nargs=REMAINDER, 
+                               help="""A list of modifiers. A modifier matches the expression [+-]<tag>.
+                               In case of +<tag>, <tag> will be added as a member. In case of -<tag>, it will be removed.""")
+    member_parser.set_defaults(func=commands.modify_member_hierarchy)
     
     list_parser = tag_parser.add_parser('list', help="List all available tags")
     list_parser.set_defaults(func=commands.list_available_tags)

@@ -21,6 +21,13 @@ tag_expense_association_table = Table(
     Column('expense_id', ForeignKey('expenses.id'), primary_key=True)
 )
 
+tag_hierarchy_association_table = Table(
+    "tag_hierarchies",
+    Base.metadata,
+    Column('parent_id', ForeignKey('tags.id'), primary_key=True),
+    Column('member_id', ForeignKey('tags.id'), primary_key=True)
+)
+
 class Tag(Base):
     __tablename__ = 'tags'
 
@@ -31,6 +38,18 @@ class Tag(Base):
     expenses = relationship('Expense', 
                             secondary=tag_expense_association_table, 
                             back_populates='tags')
+
+    members = relationship('Tag',
+                           secondary=tag_hierarchy_association_table,
+                           primaryjoin="Tag.id==tag_hierarchies.c.parent_id",
+                           secondaryjoin="Tag.id==tag_hierarchies.c.member_id",
+                           back_populates='parents')
+
+    parents = relationship('Tag',
+                           secondary=tag_hierarchy_association_table,
+                           primaryjoin="Tag.id==tag_hierarchies.c.member_id",
+                           secondaryjoin="Tag.id==tag_hierarchies.c.parent_id",
+                           back_populates='members')
 
 
 class MonthlyLog(Base):
