@@ -24,10 +24,8 @@ def create_argparser():
     track_parser.add_argument('--description', '-d', help='An optional description for the expense')
 
     summary_parser = subparsers.add_parser('show', help="Print the summary of expenses for a specific time frame")
-    summary_parser.set_defaults(func=commands.print_summary)
-
-    summary_parser.add_argument('--month', '-m', type=int)
-    summary_parser.add_argument('--year', '-y', type=int)
+    summary_parser.set_defaults(func=commands.show_expenses)
+    summary_parser.add_argument('filters', nargs=REMAINDER)
 
     tag_parser = subparsers.add_parser('tag', help='Manage tags')
     tag_parser = tag_parser.add_subparsers()

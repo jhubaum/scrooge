@@ -1,6 +1,6 @@
 from .config import Config
 from .database import create_session, MonthlyLog, Expense, SpendingCategory, Tag
-from .analysis import analyse_monthly_log
+from .analysis import Filter
 
 from . import util
 
@@ -40,23 +40,11 @@ def track_expense(args):
     session.commit()
 
 
-def print_summary(args):
-    if args.month is None or args.year is None:
-        print('Showing complete or yearly history not yet supported. Please specify month and year')
-        exit(1)
-
-    log = session.query(MonthlyLog).filter(MonthlyLog.month==args.month,
-                                           MonthlyLog.year==args.year)
-    if log.count() == 0:
-        print(f'No data available for {args.month}/{args.year}')
-    else:
-        log = log.first()
-        print(f"Available: {log.available}")
-        print("Expenses:")
-        for expense in log.expenses:
-            print(expense.amount, expense.date, expense.category, 
-                  expense.description,
-                  ', '.join(map(lambda t: t.name, expense.tags)))
+def show_expenses(args):
+    for expense in Filter(session, *args.filters).apply(session):
+        print(expense.amount, expense.date, expense.category,
+              expense.description,
+              ', '.join(map(lambda t: t.name, expense.tags)))
 
 def create_new_tag(args):
     if session.query(Tag).filter(Tag.name == args.name).count() > 0:
@@ -86,17 +74,14 @@ def modify_member_hierarchy(args):
     to_remove = set()
 
     for modifier in args.modifiers:
-        if modifier[0] != '-' and modifier[0] != '+':
-            error_and_exit(f"Invalid modifier `{modifier}`: First character has to be either '+' or '-'")
-
-        tag = session.query(Tag).filter(Tag.name==modifier[1:])
-        if tag.count() == 0:
-            error_and_exit(f"Invalid modifier `{modifier}`: `{modifier[1:]}` is not a known category name")
-
-        if modifier[0] == '-':
-            to_remove.add(tag.first())
-        else:
-            to_add.add(tag.first())
+        try: 
+            is_negative, tag = util.parse.parse_modifier(session, modifier)
+            if is_negative:
+                to_remove.add(tag)
+            else:
+                to_add.add(tag)
+        except util.parse.InvalidModifierString as e:
+            error_and_exit(f"Invalid modifier `{modifier}`: {str(e)}")
 
     for tag in to_remove:
         if tag not in parent.members:
