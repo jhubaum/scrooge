@@ -6,6 +6,7 @@ from . import util
 from . import analysis
 
 from rich import print
+from datetime import date
 
 config = Config.load('scrooge/test_config')
 session = create_session(config.database_path)
@@ -21,7 +22,9 @@ def track_expense(args):
         print(f"Create log for {args.date.month}/{args.date.year} based on information from the config")
         log = MonthlyLog(month=args.date.month, 
                          year=args.date.year,
-                         available=config.user.available)
+                         available=config.user.available,
+                         allocated_for_savings=config.user.allocated_for_savings,
+                         allocated_for_investments=config.user.allocated_for_investments)
         session.add(log)
         session.commit()
     else:
@@ -44,6 +47,34 @@ def track_expense(args):
 def show_expenses(args):
     analysis.print_expenses_grouped_by_tags(Filter(session, *args.filters).apply(session))
 
+
+def show_month(args):
+    if args.month is None:
+        year, month = date.today().year, date.today().month
+    else:
+        year, month = util.parse.parse_month(args.month)
+
+    m = session.query(MonthlyLog).filter(MonthlyLog.month==month,
+                                         MonthlyLog.year==year)
+    if m.count() == 0:
+        error_and_exit(f"No data found for {str(month).zfill(2)}/{year}")
+
+    def important_tags(*tags):
+        contexts = session.query(Tag).filter(Tag.name=='contexts')
+        assert contexts.count() == 1
+        for m in contexts.first().members:
+            yield m
+
+        for tag in tags:
+            tag = session.query(Tag).filter(Tag.name==tag)
+            if tag.count() == 0:
+                print(f"Warning: Important tag '{tag}' does not exist")
+            yield tag.first()
+
+    analysis.analyse_monthly_log(m.first(),
+                                 important_tags('food'))
+
+
 def create_new_tag(args):
     if session.query(Tag).filter(Tag.name == args.name).count() > 0:
         print(f'Tag with name {args.name} already exists!')
@@ -51,6 +82,7 @@ def create_new_tag(args):
 
     session.add(Tag(name=args.name, description=args.description))
     session.commit()
+
 
 def list_available_tags(args):
     for tag in session.query(Tag):

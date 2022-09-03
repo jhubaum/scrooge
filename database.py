@@ -51,6 +51,9 @@ class Tag(Base):
                            secondaryjoin="Tag.id==tag_hierarchies.c.parent_id",
                            back_populates='members')
 
+    def matches(self, tag):
+        return tag.id == self.id or any(map(lambda p: p.matches(tag), self.parents))
+
 
 class MonthlyLog(Base):
     __tablename__ = 'monthly_logs'
@@ -61,6 +64,10 @@ class MonthlyLog(Base):
     year = Column(Integer, nullable=False)
 
     available = Column(Float, nullable=False)
+    # todo: instead of hard coding it here, implement a config feature for
+    # automated recurring spendings and use it for this instead
+    allocated_for_savings = Column(Float, nullable=False)
+    allocated_for_investments = Column(Float, nullable=False)
 
     expenses = relationship('Expense', back_populates='log', cascade='all, delete')
 

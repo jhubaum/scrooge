@@ -14,7 +14,7 @@ def create_argparser():
     track_parser.set_defaults(func=commands.track_expense)
 
     #TODO: replace these argument by an import file instead
-    track_parser.add_argument('amount', type=int, help='The amount spent')
+    track_parser.add_argument('amount', type=float, help='The amount spent')
     track_parser.add_argument('date', type=str_to_date, help='The day it was spent')
     track_parser.add_argument('category', choices=["fixed", 
                                                    "savings", 
@@ -26,6 +26,11 @@ def create_argparser():
     summary_parser = subparsers.add_parser('show', help="Print the summary of expenses for a specific time frame")
     summary_parser.set_defaults(func=commands.show_expenses)
     summary_parser.add_argument('filters', nargs=REMAINDER)
+
+    monthly_parser = subparsers.add_parser('month',
+                                           help='Print info about the given month')
+    monthly_parser.add_argument('month', nargs="?")
+    monthly_parser.set_defaults(func=commands.show_month)
 
     tag_parser = subparsers.add_parser('tag', help='Manage tags')
     tag_parser = tag_parser.add_subparsers()
