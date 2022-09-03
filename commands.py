@@ -3,6 +3,7 @@ from .database import create_session, MonthlyLog, Expense, SpendingCategory, Tag
 from .analysis import Filter
 
 from . import util
+from . import analysis
 
 from rich import print
 
@@ -41,10 +42,7 @@ def track_expense(args):
 
 
 def show_expenses(args):
-    for expense in Filter(session, *args.filters).apply(session):
-        print(expense.amount, expense.date, expense.category,
-              expense.description,
-              ', '.join(map(lambda t: t.name, expense.tags)))
+    analysis.print_expenses_grouped_by_tags(Filter(session, *args.filters).apply(session))
 
 def create_new_tag(args):
     if session.query(Tag).filter(Tag.name == args.name).count() > 0:

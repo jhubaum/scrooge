@@ -1,7 +1,12 @@
 from rich import print
+from rich.console import Console
+from rich.table import Table
+from rich.align import Align
+
 import re
 from .database import Expense
 from . import util
+
 import datetime
 
 class PartialDate:
@@ -103,3 +108,44 @@ class Filter:
         for expense in session.query(Expense).all():
             if self.date_filter(expense.date) and include_based_on_tags(expense):
                 yield expense
+
+def print_expenses_grouped_by_tags(expenses):
+    expenses = list(expenses)
+    all_expenses = sum(map(lambda e: e.amount, expenses))
+    groups = dict()
+    for expense in expenses:
+        key = tuple(sorted(map(lambda t: t.name, expense.tags)))
+        groups.setdefault(key, [])
+        groups[key].append(expense)
+
+
+    table = Table(box=None, show_header=False)
+    for tags, expenses in groups.items():
+        total = 0
+        description_counts = dict()
+        for expense in expenses:
+            total += expense.amount
+            if expense.description is not None:
+                desc = expense.description
+                tmp = description_counts.get(desc, (0, 0))
+                description_counts[desc] = tmp[0] + 1, tmp[1] + expense.amount
+
+        table.add_row(f"[bold]{', '.join(tags)}[/bold]",
+                      f"[bold]{total:.2f}€[/bold]")
+
+        for description, count in description_counts.items():
+            cost = count[1]
+            count = "" if count[0] == 1 else f" ({count[0]}x)"
+            table.add_row(f"{description}{count}", f"{cost:.2f}€")
+
+        if len(description_counts) > 0:
+            rem = total - sum(map(lambda c:c[1], description_counts.values()))
+            if rem > 0.001:
+                table.add_row("[italic]misc[/italic]",
+                              f"[italic]{rem:.2f}[/italic]")
+        table.add_row()
+    table.add_row("[bold]Total[/bold]", 
+                  f"{all_expenses:.2f}€")
+    print(table)
+
+
