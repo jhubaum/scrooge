@@ -13,6 +13,8 @@ class UserConfig:
     
     # the monthly money available (in Eur)
     available: float
+    allocated_for_savings: float
+    allocated_for_investments: float
 
     @staticmethod
     def load_from_yaml_file(filename):
@@ -22,9 +24,8 @@ class UserConfig:
                 # TODO: Test here if a key is set twice and throw an error if so
                 data = { **data, **keys }
 
-            # TODO: Check for unknown keys here
-            # TODO: Print better errors here as well
-            return UserConfig(available=data['available'])
+            # TODO: Print better errors for missing or wrong keys
+            return UserConfig(**data)
 
 
 @dataclass
