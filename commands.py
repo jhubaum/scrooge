@@ -133,3 +133,14 @@ def modify_member_hierarchy(args):
             parent.members.append(tag)
             session.commit()
 
+
+def backup_data(args):
+    if args.action is None or args.action == "create":
+        data = dict(
+            tags = { t.id : t.to_json() for t in session.query(Tag) },
+            months = [ m.to_json() for m in session.query(MonthlyLog) ]
+        )
+        config.create_backup(data)
+    else:
+        raise NotImplementedError
+

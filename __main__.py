@@ -50,6 +50,11 @@ def create_argparser():
     
     list_parser = tag_parser.add_parser('list', help="List all available tags")
     list_parser.set_defaults(func=commands.list_available_tags)
+
+    backup_parser = subparsers.add_parser('backup', help='Backup the stored data')
+    backup_parser.add_argument('action', nargs="?", choices=['create', 'restore'],
+                               help="create is default")
+    backup_parser.set_defaults(func=commands.backup_data)
     
     return parser
 

@@ -54,6 +54,14 @@ class Tag(Base):
     def matches(self, tag):
         return tag.id == self.id or any(map(lambda p: p.matches(tag), self.parents))
 
+    def to_json(self):
+        return dict(
+            id=self.id,
+            name=self.name,
+            description=self.description,
+            members=list(map(lambda t: t.id, self.members))
+        )
+
 
 class MonthlyLog(Base):
     __tablename__ = 'monthly_logs'
@@ -70,6 +78,17 @@ class MonthlyLog(Base):
     allocated_for_investments = Column(Float, nullable=False)
 
     expenses = relationship('Expense', back_populates='log', cascade='all, delete')
+
+    def to_json(self):
+        return dict(
+            id=self.id,
+            month=self.month,
+            year=self.year,
+            available=self.available,
+            allocated_for_savings=self.allocated_for_savings,
+            allocated_for_investments=self.allocated_for_investments,
+            expenses=list(map(lambda e: e.to_json(), self.expenses))
+        )
 
 
 class Expense(Base):
@@ -88,6 +107,20 @@ class Expense(Base):
 
     log_id = Column(Integer, ForeignKey(MonthlyLog.id, ondelete='cascade'), nullable=False)
     log = relationship('MonthlyLog', back_populates='expenses')
+
+    def to_json(self):
+        return dict(
+            id=self.id,
+            amount=self.amount,
+            date=dict(
+                day=self.date.day,
+                month=self.date.month,
+                year=self.date.year
+            ),
+            category=str(self.category),
+            description=self.description,
+            tags=list(map(lambda t: t.id, self.tags))
+        )
 
 
 def create_session(path):
