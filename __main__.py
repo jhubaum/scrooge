@@ -55,6 +55,11 @@ def create_argparser():
     backup_parser.add_argument('action', nargs="?", choices=['create', 'restore'],
                                help="create is default")
     backup_parser.set_defaults(func=commands.backup_data)
+
+    import_parser = subparsers.add_parser('import', 
+                                          help='Import and verify multiple expenses from a .csv file')
+    import_parser.add_argument('file', help='The file to import from. If the given file does not exist, this command may create a template file')
+    import_parser.set_defaults(func=commands.import_from_csv_file)
     
     return parser
 

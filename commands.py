@@ -6,7 +6,9 @@ from . import util
 from . import analysis
 
 from rich import print
+from rich.prompt import Confirm
 from datetime import date
+from pathlib import Path
 
 config = Config.load()
 session = create_session(config.database_path)
@@ -16,20 +18,10 @@ def error_and_exit(message, error_code=1):
     exit(error_code)
 
 def track_expense(args):
-    log = session.query(MonthlyLog).filter(MonthlyLog.month==args.date.month,
-                                           MonthlyLog.year==args.date.year)
-    if log.count() == 0:
-        print(f"Create log for {args.date.month}/{args.date.year} based on information from the config")
-        log = MonthlyLog(month=args.date.month, 
-                         year=args.date.year,
-                         available=config.user.available,
-                         allocated_for_savings=config.user.allocated_for_savings,
-                         allocated_for_investments=config.user.allocated_for_investments)
-        session.add(log)
-        session.commit()
-    else:
-        log = log.first()
-
+    log = MonthlyLog.get_or_create(session,
+                                   args.date.month,
+                                   args.date.year,
+                                   config.user)
     tags = []
     for tag in args.tags:
         q = session.query(Tag).filter(Tag.name==tag)
@@ -132,6 +124,15 @@ def modify_member_hierarchy(args):
             print(f"Added `{tag.name}` as member of `{parent.name}`")
             parent.members.append(tag)
             session.commit()
+
+
+def import_from_csv_file(args):
+    importer = util.files.CSVExpenseImporter(args.file)
+    if not importer.file_exists() and \
+            Confirm.ask("Import file does not exist. Do you want to create it?"):
+        importer.write_sample_file()
+    else:
+        importer.import_to(session, config.user)
 
 
 def backup_data(args):

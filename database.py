@@ -4,6 +4,8 @@ from datetime import datetime
 
 import enum
 
+from rich.prompt import Confirm
+
 Base = declarative_base()
 
 
@@ -89,6 +91,24 @@ class MonthlyLog(Base):
             allocated_for_investments=self.allocated_for_investments,
             expenses=list(map(lambda e: e.to_json(), self.expenses))
         )
+
+    def get_or_create(session, month, year, user_config):
+        log = session.query(MonthlyLog).filter(MonthlyLog.month==month,
+                                               MonthlyLog.year==year)
+        if log.count() > 0:
+            return log.first()
+
+        if not Confirm.ask("Log for {str(month).zfill(2)}/{year} does not exist. Do you want to create it?"):
+            raise ValueError("Could not create monthly log")
+
+        log = MonthlyLog(month=month,
+                         year=year,
+                         available=config.user.available,
+                         allocated_for_savings=user_config.allocated_for_savings,
+                         allocated_for_investments=user_config.allocated_for_investments)
+        session.add(log)
+        session.commit()
+        return log
 
 
 class Expense(Base):
