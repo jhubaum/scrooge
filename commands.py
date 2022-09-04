@@ -8,7 +8,7 @@ from . import analysis
 from rich import print
 from datetime import date
 
-config = Config.load('scrooge/test_config')
+config = Config.load()
 session = create_session(config.database_path)
 
 def error_and_exit(message, error_code=1):
