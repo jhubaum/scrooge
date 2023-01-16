@@ -13,31 +13,39 @@ from pathlib import Path
 config = Config.load()
 session = create_session(config.database_path)
 
+
 def error_and_exit(message, error_code=1):
     print(f"Error: {message}")
     exit(error_code)
 
+
 def track_expense(args):
-    log = MonthlyLog.get_or_create(session,
-                                   args.date.month,
-                                   args.date.year,
-                                   config.user)
+    log = MonthlyLog.get_or_create(
+        session, args.date.month, args.date.year, config.user
+    )
     tags = []
     for tag in args.tags:
-        q = session.query(Tag).filter(Tag.name==tag)
+        q = session.query(Tag).filter(Tag.name == tag)
         if q.count() == 0:
             error_and_exit(f"Tag `{tag}` doesn't exist")
         tags.append(q.first())
 
-    expense = Expense(amount=args.amount, date=args.date, log=log,
-                      category=Bucket[args.category], tags=tags,
-                      description=args.description)
+    expense = Expense(
+        amount=args.amount,
+        date=args.date,
+        log=log,
+        category=Bucket[args.category],
+        tags=tags,
+        description=args.description,
+    )
     session.add(expense)
     session.commit()
 
 
 def show_expenses(args):
-    analysis.print_expenses_grouped_by_tags(Filter(session, *args.filters).apply(session))
+    analysis.print_expenses_grouped_by_tags(
+        Filter(session, *args.filters).apply(session)
+    )
 
 
 def show_month(args):
@@ -46,30 +54,30 @@ def show_month(args):
     else:
         year, month = util.parse.parse_month(args.month)
 
-    m = session.query(MonthlyLog).filter(MonthlyLog.month==month,
-                                         MonthlyLog.year==year)
+    m = session.query(MonthlyLog).filter(
+        MonthlyLog.month == month, MonthlyLog.year == year
+    )
     if m.count() == 0:
         error_and_exit(f"No data found for {str(month).zfill(2)}/{year}")
 
     def important_tags(*tags):
-        contexts = session.query(Tag).filter(Tag.name=='contexts')
+        contexts = session.query(Tag).filter(Tag.name == "contexts")
         assert contexts.count() == 1
         for m in contexts.first().members:
             yield m
 
         for tag in tags:
-            tag = session.query(Tag).filter(Tag.name==tag)
+            tag = session.query(Tag).filter(Tag.name == tag)
             if tag.count() == 0:
                 print(f"Warning: Important tag '{tag}' does not exist")
             yield tag.first()
 
-    analysis.analyse_monthly_log(m.first(),
-                                 important_tags('food'))
+    analysis.analyse_monthly_log(m.first(), important_tags("food"))
 
 
 def create_new_tag(args):
     if session.query(Tag).filter(Tag.name == args.name).count() > 0:
-        print(f'Tag with name {args.name} already exists!')
+        print(f"Tag with name {args.name} already exists!")
         exit(1)
 
     session.add(Tag(name=args.name, description=args.description))
@@ -79,15 +87,16 @@ def create_new_tag(args):
 def list_available_tags(args):
     for tag in session.query(Tag):
         if tag.description is not None:
-            print(f'{tag.name}: {tag.description}')
+            print(f"{tag.name}: {tag.description}")
         else:
             print(tag.name)
 
         for member in tag.members:
-            print(f'- {member.name}')
+            print(f"- {member.name}")
+
 
 def modify_member_hierarchy(args):
-    parent = session.query(Tag).filter(Tag.name==args.name)
+    parent = session.query(Tag).filter(Tag.name == args.name)
     if parent.count() == 0:
         error_and_exit(f"Tag `{args.name}` doesn't exist")
     parent = parent.first()
@@ -96,7 +105,7 @@ def modify_member_hierarchy(args):
     to_remove = set()
 
     for modifier in args.modifiers:
-        try: 
+        try:
             is_negative, tag = util.parse.parse_modifier(session, modifier)
             if is_negative:
                 to_remove.add(tag)
@@ -119,7 +128,9 @@ def modify_member_hierarchy(args):
         elif tag in parent.members:
             print(f"`{tag.name}` already is a member of `{parent.name}`")
         elif util.tags.path_between_tags_exists(tag, parent):
-            print(f"Skipping `{tag.name}`. Adding it as member of `{parent.name}` would create a cycle.")
+            print(
+                f"Skipping `{tag.name}`. Adding it as member of `{parent.name}` would create a cycle."
+            )
         else:
             print(f"Added `{tag.name}` as member of `{parent.name}`")
             parent.members.append(tag)
@@ -128,8 +139,9 @@ def modify_member_hierarchy(args):
 
 def import_from_csv_file(args):
     importer = util.files.CSVExpenseImporter(args.file)
-    if not importer.file_exists() and \
-            Confirm.ask("Import file does not exist. Do you want to create it?"):
+    if not importer.file_exists() and Confirm.ask(
+        "Import file does not exist. Do you want to create it?"
+    ):
         importer.write_sample_file()
     else:
         importer.import_to(session, config.user)
@@ -138,10 +150,9 @@ def import_from_csv_file(args):
 def backup_data(args):
     if args.action is None or args.action == "create":
         data = dict(
-            tags = { t.id : t.to_json() for t in session.query(Tag) },
-            months = [ m.to_json() for m in session.query(MonthlyLog) ]
+            tags={t.id: t.to_json() for t in session.query(Tag)},
+            months=[m.to_json() for m in session.query(MonthlyLog)],
         )
         config.create_backup(data)
     else:
         raise NotImplementedError
-

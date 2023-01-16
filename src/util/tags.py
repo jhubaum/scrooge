@@ -10,4 +10,3 @@ def path_between_tags_exists(tag_from, tag_to):
             visited.add(tag)
             queue += tag.members
     return False
-
