@@ -32,7 +32,7 @@ def create_argparser():
     monthly_parser.add_argument('month', nargs="?")
     monthly_parser.set_defaults(func=commands.show_month)
 
-    tag_parser = subparsers.add_parser('tag', help='Manage tags')
+    tag_parser = subparsers.add_parser('tags', help='Manage tags')
     tag_parser = tag_parser.add_subparsers()
 
     # TODO: Add some functionality for adding tag relationships

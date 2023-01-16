@@ -98,12 +98,12 @@ class MonthlyLog(Base):
         if log.count() > 0:
             return log.first()
 
-        if not Confirm.ask("Log for {str(month).zfill(2)}/{year} does not exist. Do you want to create it?"):
+        if not Confirm.ask(f"Log for {str(month).zfill(2)}/{year} does not exist. Do you want to create it?"):
             raise ValueError("Could not create monthly log")
 
         log = MonthlyLog(month=month,
                          year=year,
-                         available=config.user.available,
+                         available=user_config.available,
                          allocated_for_savings=user_config.allocated_for_savings,
                          allocated_for_investments=user_config.allocated_for_investments)
         session.add(log)

@@ -255,7 +255,7 @@ def analyse_monthly_log(log: MonthlyLog, important_tags):
     category_into_table("Fixed living expenses", SpendingCategory.fixed)
     category_into_table("Freely used money", SpendingCategory.free)
 
-    table.add_row("Important tags", "(spendings may be counted multiple times)")
+    table.add_row("Important tags", "(spendings may appear in multiple rows)")
     for tag in important_tags:
         matching_expenses = list(filter(lambda e: any(map(lambda t: t.matches(tag), 
                                                           e.tags)),

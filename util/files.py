@@ -11,11 +11,11 @@ CSV_HEADER = ["description","category","tags","date","amount"]
 def expense_from_csv_row(session, user_config, row):
     if len(row) != len(CSV_HEADER):
         raise ValueError(f"Expected {len(CSV_HEADER)} columns, found {len(row)}")
-    data = list(map(lambda c: c.strip(), row))
+    row = list(map(lambda c: c.strip(), row))
     data = dict(
         description=row[0] if len(row[0]) > 0 else None,
         category=row[1],
-        tags=set(map(lambda t: t.strip(), row[2].split(','))),
+        tags=set(map(lambda t: t.strip(), row[2].split(','))) if len(row[2]) > 0 else set(),
         date=datetime.strptime(row[3], '%Y-%m-%d').date(),
         amount=float(row[4])
     )
