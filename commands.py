@@ -1,5 +1,5 @@
 from .config import Config
-from .database import create_session, MonthlyLog, Expense, SpendingCategory, Tag
+from .database import create_session, MonthlyLog, Expense, Bucket, Tag
 from .analysis import Filter
 
 from . import util
@@ -30,7 +30,7 @@ def track_expense(args):
         tags.append(q.first())
 
     expense = Expense(amount=args.amount, date=args.date, log=log,
-                      category=SpendingCategory[args.category], tags=tags,
+                      category=Bucket[args.category], tags=tags,
                       description=args.description)
     session.add(expense)
     session.commit()

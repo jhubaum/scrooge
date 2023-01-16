@@ -8,8 +8,45 @@ import yaml
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Set, Optional, List
+from enum import Enum, auto
 
 from rich import print
+
+from database import Bucket
+
+class Periodicity(Enum):
+    Yearly = auto()
+    Monthly = auto()
+
+@dataclass
+class RecurringSpending:
+    """ Spendings that occur every month (or year) that are configurable in the config
+    """
+    amount: float
+    bucket: Bucket
+    tags: Set[str]
+    name: Optional[str]
+    periodicity: Periodicity
+    # If the spending recurs every year, optionally include a month when it is due
+    # This is used to print a warning when the monthly log is initialized
+    due_month: Optional[str]
+
+    @staticmethod
+    def from_dict(data):
+        try:
+            periodicity = Periodicity[data['periodicity']]
+            if periodicity == Periodicity.Monthly and 'due' in data:
+                raise ValueError("due value only allowed for yearly recurring spendings")
+            return RecurringSpending(amount=data['amount'],
+                                     bucket=Bucket[data['bucket']],
+                                     tags=set(data.get('tags', [])),
+                                     name=data.get('name'),
+                                     periodicity=periodicity,
+                                     due_month=data.get('due'))
+        except KeyError as e:
+            raise ValueError from e
+
 
 @dataclass
 class UserConfig:
@@ -18,13 +55,14 @@ class UserConfig:
     
     # the monthly money available (in Eur)
     available: float
-    allocated_for_savings: float
-    allocated_for_investments: float
+    recurring_spendings: List[RecurringSpending]
 
     @staticmethod
     def load_from_yaml_file(filename):
         with open(filename, 'r') as f:
-            data = {}
+            data = yaml.safe_load(f)
+        return UserConfig(available=data['available'],
+                          recurring_spendings=list(map(RecurringSpending.from_dict, data.get('recurring', []))))
             for keys in yaml.safe_load(f):
                 # TODO: Test here if a key is set twice and throw an error if so
                 data = { **data, **keys }

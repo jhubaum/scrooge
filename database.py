@@ -9,11 +9,12 @@ from rich.prompt import Confirm
 Base = declarative_base()
 
 
-class SpendingCategory(enum.Enum):
-    fixed = enum.auto() # for stuff like rent, food, ...
+class Bucket(enum.Enum):
+    essentials = enum.auto() # for stuff like rent, food, ...
     savings = enum.auto()
     investments = enum.auto()
     free = enum.auto() # for everything to enjoy life
+    giving_back = enum.auto()
 
 
 tag_expense_association_table = Table(
@@ -117,7 +118,8 @@ class Expense(Base):
     id = Column(Integer, primary_key=True)
     amount = Column(Float, nullable=False)
     date = Column(Date, nullable=False)
-    category = Column(Enum(SpendingCategory), nullable=False)
+    # TODO: Better name this bucket instead of category
+    category = Column(Enum(Bucket), nullable=False)
     description = Column(Text, nullable=True)
 
     tags = relationship('Tag', 
