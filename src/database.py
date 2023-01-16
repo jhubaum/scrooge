@@ -22,10 +22,10 @@ Base = declarative_base()
 
 
 class Bucket(enum.Enum):
-    essentials = enum.auto()  # for stuff like rent, food, ...
-    savings = enum.auto()
-    investments = enum.auto()
-    free = enum.auto()  # for everything to enjoy life
+    essential = enum.auto()  # for stuff like rent, food, ...
+    saving = enum.auto()
+    investing = enum.auto()
+    fun = enum.auto()  # for everything to enjoy life
     giving_back = enum.auto()
 
 

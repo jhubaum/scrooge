@@ -17,8 +17,8 @@ from database import Bucket
 
 
 class Periodicity(Enum):
-    Yearly = auto()
-    Monthly = auto()
+    yearly = auto()
+    monthly = auto()
 
 
 @dataclass
@@ -37,11 +37,9 @@ class RecurringSpending:
     @staticmethod
     def from_dict(data):
         try:
-            periodicity = Periodicity[data["periodicity"]]
-            if periodicity == Periodicity.Monthly and "due" in data:
-                raise ValueError(
-                    "due value only allowed for yearly recurring spendings"
-                )
+            periodicity = Periodicity[data.get("periodicity", "monthly")]
+            if periodicity == Periodicity.monthly and "due" in data:
+                raise ValueError("due date only allowed for yearly spendings")
             return RecurringSpending(
                 amount=data["amount"],
                 bucket=Bucket[data["bucket"]],
@@ -64,10 +62,20 @@ class UserConfig:
 
     @staticmethod
     def from_dict(data):
+        def create_recurring(elem):
+            i, data = elem
+            try:
+                return RecurringSpending.from_dict(data)
+            except ValueError as e:
+                name = f'\'{data["name"]}\'' if "name" in data else f"at index {i}"
+                raise ValueError(
+                    f"Error while reading recurring expense {name}: {str(e)}"
+                )
+
         return UserConfig(
             available=data["available"],
             recurring_spendings=list(
-                map(RecurringSpending.from_dict, data.get("recurring", []))
+                map(create_recurring, enumerate(data.get("recurring", [])))
             ),
         )
 
