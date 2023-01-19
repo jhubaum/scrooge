@@ -1,4 +1,4 @@
-from . import commands
+import commands
 
 from argparse import ArgumentParser, Namespace, REMAINDER
 from datetime import datetime
@@ -80,10 +80,11 @@ def create_argparser():
     return parser
 
 
-parser = create_argparser()
-args = parser.parse_args()
-if "func" in args:
-    args.func(args)
-else:
-    parser.print_help()
-    exit(1)
+def main():
+    parser = create_argparser()
+    args = parser.parse_args()
+    if "func" in args:
+        args.func(args)
+    else:
+        parser.print_help()
+        exit(1)

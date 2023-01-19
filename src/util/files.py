@@ -4,7 +4,7 @@ from pathlib import Path
 from rich import print
 from datetime import datetime
 
-from ..database import Expense, MonthlyLog, SpendingCategory, Tag
+from database import Expense, MonthlyLog, SpendingCategory, Tag
 
 CSV_HEADER = ["description", "category", "tags", "date", "amount"]
 

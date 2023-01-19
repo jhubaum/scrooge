@@ -1,7 +1,7 @@
 import re
 from datetime import date
 
-from ..database import Tag
+from database import Tag
 
 
 class InvalidModifierString(Exception):

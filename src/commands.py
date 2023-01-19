@@ -1,9 +1,9 @@
-from .config import Config
-from .database import create_session, MonthlyLog, Expense, Bucket, Tag
-from .analysis import Filter
+from config import Config
+from database import create_session, MonthlyLog, Expense, Bucket, Tag
+from analysis import Filter
 
-from . import util
-from . import analysis
+import util
+import analysis
 
 from rich import print
 from rich.prompt import Confirm

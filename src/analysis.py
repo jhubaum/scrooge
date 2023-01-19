@@ -4,9 +4,9 @@ from rich.table import Table, Column
 
 import re
 
-from .database import SpendingCategory, MonthlyLog, Tag
-from .database import Expense
-from . import util
+from database import SpendingCategory, MonthlyLog, Tag
+from database import Expense
+import util
 
 import datetime
 
