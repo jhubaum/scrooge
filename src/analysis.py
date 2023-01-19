@@ -4,19 +4,23 @@ from rich.table import Table, Column
 
 import re
 
-from database import SpendingCategory, MonthlyLog, Tag
+from database import Bucket, MonthlyLog, Tag
 from database import Expense
 import util
 
 import datetime
+from collections import defaultdict
 
-# how much of the available money should be spend per category?
+# how much of the available money should be spend per bucket?
 # a tuple represents an interval, a single float a specific percentage
+# TODO: This really should be defined in the same module where Bucket is defined (or even in the config?)
+# I really need to think about how to organize this code...
 CATEGORY_SPENDING_GUIDELINE = {
-    SpendingCategory.fixed: (0.5, 0.6),
-    SpendingCategory.savings: (0.05, 0.1),
-    SpendingCategory.investments: 0.1,
-    SpendingCategory.free: (0.2, 0.35),
+    Bucket.essential: (0.5, 0.6),
+    Bucket.saving: (0.05, 0.1),
+    Bucket.investing: 0.1,
+    Bucket.fun: (0.2, 0.30),
+    Bucket.giving_back: (0.05, 0.1),
 }
 
 
@@ -196,11 +200,10 @@ def print_expenses_grouped_by_tags(expenses):
     print(table)
 
 
-def group_expenses_by_category(expenses):
-    group = dict()
+def group_expenses_by_bucket(expenses):
+    group = defaultdict(list)
     for expense in expenses:
-        group.setdefault(expense.category, [])
-        group[expense.category].append(expense)
+        group[expense.bucket].append(expense)
     return group
 
 
@@ -208,25 +211,36 @@ def fmt_with_percentage(amount, percentage, *mod):
     return with_modifiers(f"{fmt_amount(amount)} ({percentage*100:.2f}%)", *mod)
 
 
-def fmt_amount_for_category(available, category, epsilon=0.001):
+def fmt_amount_for_bucket(available, bucket, epsilon=0.001):
     def fmt(amount, *mod):
         percentage = amount / available
-        category_range = CATEGORY_SPENDING_GUIDELINE[category]
-        if type(category_range) == tuple:
-            lower_bound = category_range[0]
-            upper_bound = category_range[1]
+        target_value = None
+
+        bucket_range = CATEGORY_SPENDING_GUIDELINE[bucket]
+        if type(bucket_range) == tuple:
+            lower_bound = bucket_range[0]
+            upper_bound = bucket_range[1]
         else:
-            lower_bound = category_range
-            upper_bound = category_range
+            lower_bound = bucket_range
+            upper_bound = bucket_range
 
         if percentage - epsilon < lower_bound:
             color = "yellow"
+            target_value = lower_bound
         elif percentage + epsilon > upper_bound:
+            target_value = upper_bound
             color = "red"
         else:
             color = "green"
 
-        return fmt_with_percentage(amount, percentage, *mod, color)
+        if target_value is None:
+            return fmt_with_percentage(amount, percentage, *mod, color)
+        target_value = target_value * available
+        return with_modifiers(
+            f"{fmt_amount(amount)} ({percentage*100:.2f}%, target={target_value:.2f}€)",
+            *mod,
+            color,
+        )
 
     return fmt
 
@@ -240,13 +254,13 @@ def analyse_monthly_log(log: MonthlyLog, important_tags):
         box=None,
     )
 
-    grouped = group_expenses_by_category(log.expenses)
+    grouped = group_expenses_by_bucket(log.expenses)
 
-    def category_into_table(title, category, misc=0.0):
-        title_fmt_amount = fmt_amount_for_category(log.available, category)
+    def bucket_into_table(title, bucket, misc=0.0):
+        title_fmt_amount = fmt_amount_for_bucket(log.available, bucket)
         group = DescriptionGroup(
             title,
-            grouped.get(category, []),
+            grouped.get(bucket, []),
             misc=misc,
             title_fmt_amount=title_fmt_amount,
         )
@@ -254,27 +268,34 @@ def analyse_monthly_log(log: MonthlyLog, important_tags):
         table.add_row()
 
     amount_row(table, "Available", log.available, "bold")
-    unaccounted = (
-        log.available
-        - sum(map(lambda e: e.amount, log.expenses))
-        - log.allocated_for_savings
-        - log.allocated_for_investments
-    )
+    sum_of_expenses = sum(map(lambda e: e.amount, log.expenses))
+    unaccounted = log.available - sum_of_expenses
     if abs(unaccounted) < 0.001:
         pass
     elif unaccounted < 0.0:
+        amount_row(table, "Amount spend", sum_of_expenses, "italic", "red")
         amount_row(table, "Excess spending", -unaccounted, "italic", "red")
     else:
+        amount_row(table, "Amount spent", sum_of_expenses, "italic", "green")
         amount_row(table, "Unaccounted", unaccounted, "italic")
+    for bucket, title in [
+        (Bucket.investing, "Amount invested"),
+        (Bucket.saving, "Amount saved"),
+        (Bucket.essential, "Amount spent on fixed living expenses"),
+        (Bucket.fun, "Amount spent to have fun"),
+        (Bucket.giving_back, "Amount given back"),
+    ]:
+        amount = sum(map(lambda e: e.amount, grouped[bucket]))
+        # Wow, I waas really rushed when I wrote this code...
+        # If I ever have some time (or whoever is reading this), please refactor it all
+        table.add_row(
+            title, fmt_amount_for_bucket(log.available, bucket)(amount, "bold")
+        )
 
-    category_into_table(
-        "Amount invested", SpendingCategory.investments, log.allocated_for_investments
-    )
-    category_into_table(
-        "Amount saved", SpendingCategory.savings, log.allocated_for_savings
-    )
-    category_into_table("Fixed living expenses", SpendingCategory.fixed)
-    category_into_table("Freely used money", SpendingCategory.free)
+    table.add_row()
+
+    bucket_into_table("Fixed living expenses", Bucket.essential)
+    bucket_into_table("Freely used money", Bucket.fun)
 
     table.add_row("Important tags", "(spendings may appear in multiple rows)")
     for tag in important_tags:

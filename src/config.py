@@ -13,7 +13,7 @@ from enum import Enum, auto
 
 from rich import print
 
-from database import Bucket
+from database import Bucket, Expense, MonthlyLog, Tag
 
 
 class Periodicity(Enum):
@@ -22,7 +22,7 @@ class Periodicity(Enum):
 
 
 @dataclass
-class RecurringSpending:
+class RecurringExpense:
     """Spendings that occur every month (or year) that are configurable in the config"""
 
     amount: float
@@ -40,7 +40,10 @@ class RecurringSpending:
             periodicity = Periodicity[data.get("periodicity", "monthly")]
             if periodicity == Periodicity.monthly and "due" in data:
                 raise ValueError("due date only allowed for yearly spendings")
-            return RecurringSpending(
+            if "due" in data and "name" not in data:
+                raise ValueError("recurring expenses with due date have to have a name")
+
+            return RecurringExpense(
                 amount=data["amount"],
                 bucket=Bucket[data["bucket"]],
                 tags=set(data.get("tags", [])),
@@ -51,6 +54,19 @@ class RecurringSpending:
         except KeyError as e:
             raise ValueError from e
 
+    def create_expense_for_month(self, session, log: MonthlyLog) -> Expense:
+        return Expense(
+            amount=self.amount
+            if self.periodicity == Periodicity.monthly
+            else self.amount / 12.0,
+            date=datetime(day=1, month=log.month, year=log.year),
+            bucket=self.bucket,
+            description=self.name,
+            source="recurring",
+            log=log,
+            tags=[Tag.get(session, t) for t in self.tags],
+        )
+
 
 @dataclass
 class UserConfig:
@@ -58,14 +74,14 @@ class UserConfig:
 
     # the monthly money available (in Eur)
     available: float
-    recurring_spendings: List[RecurringSpending]
+    recurring_expenses: List[RecurringExpense]
 
     @staticmethod
     def from_dict(data):
         def create_recurring(elem):
             i, data = elem
             try:
-                return RecurringSpending.from_dict(data)
+                return RecurringExpense.from_dict(data)
             except ValueError as e:
                 name = f'\'{data["name"]}\'' if "name" in data else f"at index {i}"
                 raise ValueError(
@@ -74,7 +90,7 @@ class UserConfig:
 
         return UserConfig(
             available=data["available"],
-            recurring_spendings=list(
+            recurring_expenses=list(
                 map(create_recurring, enumerate(data.get("recurring", [])))
             ),
         )

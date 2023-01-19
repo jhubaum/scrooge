@@ -1,11 +1,11 @@
 import pytest
 
-from config import UserConfig, RecurringSpending, Periodicity
+from config import UserConfig, RecurringExpense, Periodicity
 from database import Bucket
 
 
-def test_recurring_spending_working_values():
-    spending = RecurringSpending.from_dict(
+def test_recurring_expense_working_values():
+    spending = RecurringExpense.from_dict(
         dict(
             bucket="investing",
             amount=1000,
@@ -24,8 +24,8 @@ def test_recurring_spending_working_values():
     assert spending.due_month is None
 
 
-def test_recurring_spending_default_values():
-    spending = RecurringSpending.from_dict(
+def test_recurring_expense_default_values():
+    spending = RecurringExpense.from_dict(
         dict(
             bucket="investing",
             amount=1000,
@@ -37,9 +37,9 @@ def test_recurring_spending_default_values():
     assert spending.due_month is None
 
 
-def test_recurring_spending_missing_values():
+def test_recurring_expense_missing_values():
     with pytest.raises(ValueError) as exc_info:
-        RecurringSpending.from_dict(dict(amount=1000))
+        RecurringExpense.from_dict(dict(amount=1000))
 
     assert exc_info.value
 
@@ -59,13 +59,13 @@ recurring:
 
     user_config = UserConfig.load_from_yaml_file(file)
     assert user_config.available == 300.0
-    assert len(user_config.recurring_spendings) == 2
+    assert len(user_config.recurring_expenses) == 2
     for i, (bucket, amount) in enumerate([("investing", 240.0), ("saving", 15.37)]):
-        assert user_config.recurring_spendings[i].amount == amount
-        assert user_config.recurring_spendings[i].bucket == Bucket[bucket]
+        assert user_config.recurring_expenses[i].amount == amount
+        assert user_config.recurring_expenses[i].bucket == Bucket[bucket]
 
 
-def test_recurring_spending_missing_value_error_messages():
+def test_recurring_expense_missing_value_error_messages():
     with pytest.raises(ValueError) as exc_info:
         UserConfig.from_dict(
             dict(

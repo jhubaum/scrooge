@@ -4,9 +4,9 @@ from pathlib import Path
 from rich import print
 from datetime import datetime
 
-from database import Expense, MonthlyLog, SpendingCategory, Tag
+from database import Expense, MonthlyLog, Bucket, Tag
 
-CSV_HEADER = ["description", "category", "tags", "date", "amount"]
+CSV_HEADER = ["description", "bucket", "tags", "date", "amount"]
 
 
 def expense_from_csv_row(session, user_config, row):
@@ -15,7 +15,7 @@ def expense_from_csv_row(session, user_config, row):
     row = list(map(lambda c: c.strip(), row))
     data = dict(
         description=row[0] if len(row[0]) > 0 else None,
-        category=row[1],
+        bucket=row[1],
         tags=set(map(lambda t: t.strip(), row[2].split(",")))
         if len(row[2]) > 0
         else set(),
@@ -26,9 +26,9 @@ def expense_from_csv_row(session, user_config, row):
         session, data["date"].month, data["date"].year, user_config
     )
     try:
-        data["category"] = SpendingCategory[data["category"]]
+        data["bucket"] = Bucket[data["category"]]
     except KeyError as e:
-        raise ValueError(f"Category {data['category']} does not exist")
+        raise ValueError(f"Category {data['bucket']} does not exist")
 
     tags = []
     for tag in data["tags"]:

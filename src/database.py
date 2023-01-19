@@ -82,6 +82,13 @@ class Tag(Base):
             members=list(map(lambda t: t.id, self.members)),
         )
 
+    @staticmethod
+    def get(session, string):
+        q = session.query(Tag).filter(Tag.name == string)
+        if q.count() == 0:
+            raise ValueError(f"Tag '{string}' does not exist")
+        return q.first()
+
 
 class MonthlyLog(Base):
     __tablename__ = "monthly_logs"
@@ -92,10 +99,6 @@ class MonthlyLog(Base):
     year = Column(Integer, nullable=False)
 
     available = Column(Float, nullable=False)
-    # todo: instead of hard coding it here, implement a config feature for
-    # automated recurring spendings and use it for this instead
-    allocated_for_savings = Column(Float, nullable=False)
-    allocated_for_investments = Column(Float, nullable=False)
 
     expenses = relationship("Expense", back_populates="log", cascade="all, delete")
 
@@ -105,33 +108,48 @@ class MonthlyLog(Base):
             month=self.month,
             year=self.year,
             available=self.available,
-            allocated_for_savings=self.allocated_for_savings,
-            allocated_for_investments=self.allocated_for_investments,
             expenses=list(map(lambda e: e.to_json(), self.expenses)),
         )
 
-    def get_or_create(session, month, year, user_config):
+    @staticmethod
+    def get(session, month, year):
         log = session.query(MonthlyLog).filter(
             MonthlyLog.month == month, MonthlyLog.year == year
         )
         if log.count() > 0:
             return log.first()
 
+        return None
+
+    @staticmethod
+    def add_from_user_config(session, month, year, user_config):
+        if MonthlyLog.get(session, month, year) is not None:
+            raise ValueError(
+                f"Tried to create already existing monthly log for {month}/{year}"
+            )
+
+        log = MonthlyLog(month=month, year=year, available=user_config.available)
+        session.add(log)
+        for expense in user_config.recurring_expenses:
+            session.add(expense.create_expense_for_month(session, log))
+
+        session.commit()
+        return log
+
+    @staticmethod
+    def get_or_create(session, month, year, user_config):
+        # TODO: It feels like this method belongs somewhere else.
+        # Maybe in util or commands.py?
+        log = MonthlyLog.get(session, month, year)
+        if log is not None:
+            return log
+
         if not Confirm.ask(
             f"Log for {str(month).zfill(2)}/{year} does not exist. Do you want to create it?"
         ):
             raise ValueError("Could not create monthly log")
 
-        log = MonthlyLog(
-            month=month,
-            year=year,
-            available=user_config.available,
-            allocated_for_savings=user_config.allocated_for_savings,
-            allocated_for_investments=user_config.allocated_for_investments,
-        )
-        session.add(log)
-        session.commit()
-        return log
+        return MonthlyLog.create_from_user_config(session, month, year, user_config)
 
 
 class Expense(Base):
@@ -140,9 +158,10 @@ class Expense(Base):
     id = Column(Integer, primary_key=True)
     amount = Column(Float, nullable=False)
     date = Column(Date, nullable=False)
-    # TODO: Better name this bucket instead of category
-    category = Column(Enum(Bucket), nullable=False)
+    bucket = Column(Enum(Bucket), nullable=False)
     description = Column(Text, nullable=True)
+    # Where does this expense come from. Right now only used to mark recurring expenses
+    source = Column(String(20), nullable=True)
 
     tags = relationship(
         "Tag", secondary=tag_expense_association_table, back_populates="expenses"
@@ -160,6 +179,7 @@ class Expense(Base):
             date=dict(day=self.date.day, month=self.date.month, year=self.date.year),
             category=str(self.category),
             description=self.description,
+            source=self.source,
             tags=list(map(lambda t: t.id, self.tags)),
         )
 
@@ -167,8 +187,7 @@ class Expense(Base):
 def create_session(path):
     if path is None:
         path = ":memory:"
-    else:
-        path = f"sqlite+pysqlite:///{path}"
+    path = f"sqlite+pysqlite:///{path}"
     engine = create_engine(path, future=True)
     Base.metadata.create_all(engine)
     return Session(engine)
