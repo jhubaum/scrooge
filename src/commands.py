@@ -54,11 +54,13 @@ def show_month(args):
     else:
         year, month = util.parse.parse_month(args.month)
 
-    m = session.query(MonthlyLog).filter(
-        MonthlyLog.month == month, MonthlyLog.year == year
-    )
-    if m.count() == 0:
-        error_and_exit(f"No data found for {str(month).zfill(2)}/{year}")
+    m = MonthlyLog.get(session, month=month, year=year)
+    if m is None:
+        if Confirm.ask(f"No data exists for {month}/{year}. Do you want to create a log based on the config values?"):
+            MonthlyLog.add_from_user_config(session, month, year, config.user)
+            print(f"Created monthly log for {month}/{year}")
+        return
+        
 
     def important_tags(*tags):
         contexts = session.query(Tag).filter(Tag.name == "contexts")
@@ -72,7 +74,7 @@ def show_month(args):
                 print(f"Warning: Important tag '{tag}' does not exist")
             yield tag.first()
 
-    analysis.analyse_monthly_log(m.first(), important_tags("food"))
+    analysis.analyse_monthly_log(m, important_tags("food"))
 
 
 def create_new_tag(args):
