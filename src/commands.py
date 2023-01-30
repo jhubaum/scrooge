@@ -7,6 +7,7 @@ import analysis
 
 from rich import print
 from rich.prompt import Confirm
+from rich.table import Table, Column
 from datetime import date
 from pathlib import Path
 
@@ -56,11 +57,12 @@ def show_month(args):
 
     m = MonthlyLog.get(session, month=month, year=year)
     if m is None:
-        if Confirm.ask(f"No data exists for {month}/{year}. Do you want to create a log based on the config values?"):
+        if Confirm.ask(
+            f"No data exists for {month}/{year}. Do you want to create a log based on the config values?"
+        ):
             MonthlyLog.add_from_user_config(session, month, year, config.user)
             print(f"Created monthly log for {month}/{year}")
         return
-        
 
     def important_tags(*tags):
         contexts = session.query(Tag).filter(Tag.name == "contexts")
@@ -147,6 +149,44 @@ def import_from_csv_file(args):
         importer.write_sample_file()
     else:
         importer.import_to(session, config.user)
+
+
+def show_config(args):
+    config = Config.load(args.config)
+
+    table = Table(
+        "descriptor",
+        Column(header="Amount", justify="right"),
+        title="Allocated money for buckets",
+        show_header=False,
+        box=None,
+    )
+
+    grouped = analysis.group_expenses_by_bucket(config.user.recurring_expenses)
+    for bucket, title in analysis.BUCKET_TITLES.items():
+        amount = sum(map(lambda e: e.amount, grouped[bucket]))
+        table.add_row(
+            title,
+            analysis.fmt_amount_for_bucket(
+                config.user.available, bucket, amount, "bold"
+            ),
+        )
+    total = sum(map(lambda r: r.amount, config.user.recurring_expenses))
+    table.add_row(
+        "[bold]Total amount allocated[/bold]",
+        analysis.fmt_with_percentage(total, total / config.user.available, "bold"),
+    )
+    table.add_row(
+        "[bold]Total amount left[/bold]",
+        analysis.fmt_amount(config.user.available - total, "bold"),
+    )
+    print(table)
+
+    for expense in config.user.recurring_expenses:
+        # Do some sanity checks
+        for tag in expense.tags:
+            with create_session(config.database_path) as session:
+                Tag.get(session, tag)
 
 
 def backup_data(args):

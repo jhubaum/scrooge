@@ -77,6 +77,17 @@ def create_argparser():
     )
     import_parser.set_defaults(func=commands.import_from_csv_file)
 
+    config_parser = subparsers.add_parser(
+        "config", help="Verify and analyse the config file"
+    )
+    config_parser.set_defaults(func=commands.show_config)
+    config_parser.add_argument(
+        "config",
+        nargs="?",
+        help="""The config file to use. If not set, use the config file named 'config.yml' 
+        located in the folder that is defined by the environment variable 'SCROOGE_CONFIG_DIR'""",
+    )
+
     return parser
 
 

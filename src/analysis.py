@@ -23,6 +23,14 @@ CATEGORY_SPENDING_GUIDELINE = {
     Bucket.giving_back: (0.05, 0.1),
 }
 
+BUCKET_TITLES = {
+    Bucket.investing: "Amount invested",
+    Bucket.saving: "Amount saved",
+    Bucket.essential: "Amount spent on fixed living expenses",
+    Bucket.fun: "Amount spent to have fun",
+    Bucket.giving_back: "Amount given back",
+}
+
 
 def with_modifiers(str, *mod):
     if len(mod) == 0:
@@ -211,38 +219,35 @@ def fmt_with_percentage(amount, percentage, *mod):
     return with_modifiers(f"{fmt_amount(amount)} ({percentage*100:.2f}%)", *mod)
 
 
-def fmt_amount_for_bucket(available, bucket, epsilon=0.001):
-    def fmt(amount, *mod):
-        percentage = amount / available
-        target_value = None
+def fmt_amount_for_bucket(available, bucket, amount, *mod, epsilon=0.001):
+    percentage = amount / available
+    target_value = None
 
-        bucket_range = CATEGORY_SPENDING_GUIDELINE[bucket]
-        if type(bucket_range) == tuple:
-            lower_bound = bucket_range[0]
-            upper_bound = bucket_range[1]
-        else:
-            lower_bound = bucket_range
-            upper_bound = bucket_range
+    bucket_range = CATEGORY_SPENDING_GUIDELINE[bucket]
+    if type(bucket_range) == tuple:
+        lower_bound = bucket_range[0]
+        upper_bound = bucket_range[1]
+    else:
+        lower_bound = bucket_range
+        upper_bound = bucket_range
 
-        if percentage - epsilon < lower_bound:
-            color = "yellow"
-            target_value = lower_bound
-        elif percentage + epsilon > upper_bound:
-            target_value = upper_bound
-            color = "red"
-        else:
-            color = "green"
+    if percentage - epsilon < lower_bound:
+        color = "yellow"
+        target_value = lower_bound
+    elif percentage + epsilon > upper_bound:
+        target_value = upper_bound
+        color = "red"
+    else:
+        color = "green"
 
-        if target_value is None:
-            return fmt_with_percentage(amount, percentage, *mod, color)
-        target_value = target_value * available
-        return with_modifiers(
-            f"{fmt_amount(amount)} ({percentage*100:.2f}%, target={target_value:.2f}€)",
-            *mod,
-            color,
-        )
-
-    return fmt
+    if target_value is None:
+        return fmt_with_percentage(amount, percentage, *mod, color)
+    target_value = target_value * available
+    return with_modifiers(
+        f"{fmt_amount(amount)} ({percentage*100:.2f}%, target={target_value:.2f}€)",
+        *mod,
+        color,
+    )
 
 
 def analyse_monthly_log(log: MonthlyLog, important_tags):
@@ -256,10 +261,12 @@ def analyse_monthly_log(log: MonthlyLog, important_tags):
 
     grouped = group_expenses_by_bucket(log.expenses)
 
-    def bucket_into_table(title, bucket, misc=0.0):
-        title_fmt_amount = fmt_amount_for_bucket(log.available, bucket)
+    def bucket_into_table(bucket, misc=0.0):
+        def title_fmt_amount(amount, *mod):
+            return fmt_amount_for_bucket(log.available, bucket, amount, *mod)
+
         group = DescriptionGroup(
-            title,
+            BUCKET_TITLES[bucket],
             grouped.get(bucket, []),
             misc=misc,
             title_fmt_amount=title_fmt_amount,
@@ -278,18 +285,11 @@ def analyse_monthly_log(log: MonthlyLog, important_tags):
     else:
         amount_row(table, "Amount spent", sum_of_expenses, "italic", "green")
         amount_row(table, "Unaccounted", unaccounted, "italic")
-    for bucket, title in [
-        (Bucket.investing, "Amount invested"),
-        (Bucket.saving, "Amount saved"),
-        (Bucket.essential, "Amount spent on fixed living expenses"),
-        (Bucket.fun, "Amount spent to have fun"),
-        (Bucket.giving_back, "Amount given back"),
-    ]:
+
+    for bucket, title in BUCKET_TITLES.items():
         amount = sum(map(lambda e: e.amount, grouped[bucket]))
-        # Wow, I waas really rushed when I wrote this code...
-        # If I ever have some time (or whoever is reading this), please refactor it all
         table.add_row(
-            title, fmt_amount_for_bucket(log.available, bucket)(amount, "bold")
+            title, fmt_amount_for_bucket(log.available, bucket, amount, "bold")
         )
 
     table.add_row()

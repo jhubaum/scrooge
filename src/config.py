@@ -110,12 +110,15 @@ class Config:
     num_backups_kept: int
 
     @staticmethod
-    def load():
-        if os.environ.get("SCROOGE_TESTING", False):
-            print("[Using test config]\n")
-            path = Path(__file__).parents[0] / "test_config"
-        else:
-            path = Path(os.environ.get("SCROOGE_CONFIG_DIR", "~/.scrooge")).resolve()
+    def load(path: Optional[Path] = None):
+        if path is None:
+            if os.environ.get("SCROOGE_TESTING", False):
+                print("[Using test config]\n")
+                path = Path(__file__).parents[0] / "test_config"
+            else:
+                path = Path(
+                    os.environ.get("SCROOGE_CONFIG_DIR", "~/.scrooge")
+                ).resolve()
 
         if not path.is_dir():
             print(f"Config directory {path} does not exist. Exiting")
